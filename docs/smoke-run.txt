@@ -1,0 +1,106 @@
+Прогон npm run smoke против живого сервера и службы MongoDB 9.0 (Windows), 12.11.2026
+
+OK  200 GET    /api/health — сервер и БД доступны
+OK      проверка: health.db = connected
+OK  200 GET    /api/categories?page=1&limit=2&sort=name — список категорий, пагинация
+OK      проверка: meta.limit=2, data ≤ 2, total ≥ 1
+OK  201 POST   /api/categories — создать категорию
+OK  409 POST   /api/categories — дубль названия (без учёта регистра)
+OK  400 POST   /api/categories — валидация: короткое имя и плохой slug
+OK      проверка: в details есть ошибки name и slug
+OK  200 GET    /api/categories/6af56b08cfce9427ca002380 — получить категорию по id
+OK      проверка: productCount = 0 (виртуальный populate)
+OK  200 GET    /api/categories?q=%D1%82%D0%B5%D1%81%D1%82-%D0%BA%D0%B0%D1%82%D0%B5%D0%B3%D0%BE%D1%80%D0%B8%D1%8F%20mwd8a5sc — поиск категории ?q=
+OK      проверка: найдена ровно 1 категория
+OK  200 PATCH  /api/categories/6af56b08cfce9427ca002380 — изменить категорию
+OK      проверка: описание обновилось
+OK  400 PATCH  /api/categories/6af56b08cfce9427ca002380 — нельзя менять _id (белый список полей)
+OK  400 GET    /api/categories/123 — некорректный id
+OK  404 GET    /api/categories/64b000000000000000000000 — несуществующий id
+OK  400 GET    /api/categories?sort=password — сортировка по запрещённому полю
+OK  201 POST   /api/users — создать пользователя со встроенным адресом
+OK      проверка: единственный адрес стал адресом по умолчанию
+OK  409 POST   /api/users — дубль email (email приводится к нижнему регистру)
+OK  400 POST   /api/users — валидация email и телефона
+OK      проверка: в details есть email и phone
+OK  200 GET    /api/users?city=%D0%9A%D0%B0%D1%80%D0%B0%D0%B3%D0%B0%D0%BD%D0%B4%D0%B0&q=test.mwd8a5sc%40example.com — фильтр по городу во встроенном массиве
+OK      проверка: найден 1 пользователь
+OK  200 PATCH  /api/users/6af56b08cfce9427ca002383 — изменить пользователя
+OK      проверка: телефон обновился
+OK  200 GET    /api/users/6af56b08cfce9427ca002383 — получить пользователя
+OK  400 GET    /api/users?role=superuser — неверное значение фильтра role
+OK  201 POST   /api/products — создать товар (ссылка на категорию)
+OK      проверка: category подтянута через populate
+OK      проверка: теги приведены к нижнему регистру
+OK      проверка: rating с клиента проигнорирован (вычисляется сервером)
+OK  400 POST   /api/products — ссылка на несуществующую категорию
+OK      проверка: ошибка в поле category
+OK  400 POST   /api/products — отрицательная цена
+OK  200 GET    /api/products?category=6af56b08cfce9427ca002380 — фильтр по категории
+OK      проверка: 1 товар, в списке нет reviews (проекция)
+OK  200 GET    /api/products?minPrice=50000&maxPrice=300000&inStock=true&sort=-price&limit=5 — фильтр по цене/наличию + сортировка
+OK      проверка: цены в диапазоне и по убыванию: 289990, 219990, 169990, 109990, 99990
+OK      проверка: все в наличии
+OK  200 GET    /api/products?q=%D1%81%D0%BC%D0%B0%D1%80%D1%82%D1%84%D0%BE%D0%BD%D1%8B — полнотекстовый поиск (рус. морфология)
+OK      проверка: найдено товаров: 4
+OK  200 GET    /api/products?tag=android&tag=samsung — фильтр по нескольким тегам
+OK      проверка: у всех есть оба тега
+OK  400 GET    /api/products?minPrice=abc — нечисловой minPrice
+OK  200 GET    /api/products/6af56b08cfce9427ca00238a — получить товар
+OK  200 PATCH  /api/products/6af56b08cfce9427ca00238a — изменить цену и остаток
+OK      проверка: цена 89990, остаток 3
+OK  400 PATCH  /api/products/6af56b08cfce9427ca00238a — дробный остаток
+OK  200 GET    /api/categories/6af56b08cfce9427ca002380 — категория после добавления товара
+OK      проверка: productCount = 1
+OK  409 DELETE /api/categories/6af56b08cfce9427ca002380 — нельзя удалить категорию с товарами
+OK  400 POST   /api/products/6af56b08cfce9427ca00238a/reviews — оценка вне 1–5
+OK  201 POST   /api/products/6af56b08cfce9427ca00238a/reviews — добавить отзыв
+OK      проверка: rating пересчитан: 5 / 1
+OK  409 POST   /api/products/6af56b08cfce9427ca00238a/reviews — повторный отзыв того же пользователя
+OK  200 GET    /api/products/6af56b08cfce9427ca00238a/reviews — список отзывов
+OK      проверка: автор отзыва подтянут populate
+OK  200 PATCH  /api/products/6af56b08cfce9427ca00238a/reviews/6af56b08cfce9427ca00238e — изменить отзыв
+OK      проверка: rating.avg = 4
+OK  404 PATCH  /api/products/6af56b08cfce9427ca00238a/reviews/64b000000000000000000000 — несуществующий отзыв
+OK  201 POST   /api/orders — создать заказ
+OK      проверка: total посчитан сервером: 179980
+OK      проверка: адрес взят из профиля (копия)
+OK      проверка: name и price скопированы в позицию (snapshot)
+OK      проверка: статус new
+OK  200 GET    /api/products/6af56b08cfce9427ca00238a — остаток после заказа
+OK      проверка: stock: 3 - 2 = 1
+OK  409 POST   /api/orders — не хватает товара на складе
+OK      проверка: в ответе available = 1
+OK  400 POST   /api/orders — пустой заказ
+OK  400 POST   /api/orders — несуществующий пользователь
+OK  200 GET    /api/orders?user=6af56b08cfce9427ca002383 — заказы пользователя
+OK      проверка: 1 заказ, user подтянут populate
+OK  200 GET    /api/orders?status=delivered&sort=-total&limit=3 — фильтр по статусу из seed
+OK      проверка: все delivered
+OK  400 GET    /api/orders?status=lost — неверный статус в фильтре
+OK  200 GET    /api/orders/6af56b08cfce9427ca002396 — получить заказ
+OK      проверка: items.product подтянут populate
+OK  409 PATCH  /api/orders/6af56b08cfce9427ca002396 — недопустимый переход new -> delivered
+OK  400 PATCH  /api/orders/6af56b08cfce9427ca002396 — состав заказа менять нельзя
+OK  200 PATCH  /api/orders/6af56b08cfce9427ca002396 — оплата: new -> paid
+OK      проверка: статус paid
+OK  200 PATCH  /api/orders/6af56b08cfce9427ca002396 — отмена: paid -> cancelled
+OK  200 GET    /api/products/6af56b08cfce9427ca00238a — остаток после отмены
+OK      проверка: товар вернулся на склад: stock = 3
+OK  409 DELETE /api/users/6af56b08cfce9427ca002383 — нельзя удалить пользователя с заказами
+OK  200 DELETE /api/orders/6af56b08cfce9427ca002396 — удалить заказ
+OK  404 GET    /api/orders/6af56b08cfce9427ca002396 — заказ удалён
+OK  200 GET    /api/stats/sales-by-category — выручка по категориям
+OK      проверка: есть строки с revenue > 0
+OK  200 GET    /api/stats/orders-by-status — заказы по статусам
+OK      проверка: есть строки
+OK  200 DELETE /api/products/6af56b08cfce9427ca00238a/reviews/6af56b08cfce9427ca00238e — удалить отзыв
+OK      проверка: rating.count = 0
+OK  200 DELETE /api/products/6af56b08cfce9427ca00238a — удалить товар
+OK  404 GET    /api/products/6af56b08cfce9427ca00238a — товар удалён
+OK  200 DELETE /api/categories/6af56b08cfce9427ca002380 — удалить пустую категорию
+OK  200 DELETE /api/users/6af56b08cfce9427ca002383 — удалить пользователя без заказов
+OK  404 GET    /api/unknown — несуществующий маршрут
+OK  400 POST   /api/categories — битый JSON
+
+Итого: запросов 64, проверок 38, ошибок 0

@@ -1,0 +1,266 @@
+# Все запросы API. Запускать по порядку сверху вниз (id подставляются автоматически).
+# VS Code: расширение «REST Client» -> «Send Request» над запросом.
+# Перед запуском: npm run seed && npm start
+
+@baseUrl = http://localhost:3000
+
+# ======================== Служебное ========================
+
+### Проверка сервера и БД (ожидается 200)
+GET {{baseUrl}}/api/health
+
+# ======================== Категории ========================
+
+### Список категорий (пагинация, сортировка) (ожидается 200)
+GET {{baseUrl}}/api/categories?page=1&limit=10&sort=name
+
+### Поиск категории по названию (ожидается 200)
+GET {{baseUrl}}/api/categories?q=ауд
+
+### Создать категорию (ожидается 201)
+# @name category
+POST {{baseUrl}}/api/categories
+Content-Type: application/json
+
+{
+  "name": "Игровые консоли",
+  "slug": "consoles",
+  "description": "Игровые приставки и геймпады"
+}
+
+### Получить категорию по id (ожидается 200)
+GET {{baseUrl}}/api/categories/{{category.response.body.data._id}}
+
+### Изменить категорию (ожидается 200)
+PATCH {{baseUrl}}/api/categories/{{category.response.body.data._id}}
+Content-Type: application/json
+
+{
+  "description": "Приставки, геймпады и аксессуары"
+}
+
+# ======================== Пользователи ========================
+
+### Список покупателей (ожидается 200)
+GET {{baseUrl}}/api/users?role=customer&sort=name&page=1&limit=10
+
+### Пользователи с адресом в городе (встроенный массив) (ожидается 200)
+GET {{baseUrl}}/api/users?city=Алматы
+
+### Создать пользователя (ожидается 201)
+# @name user
+POST {{baseUrl}}/api/users
+Content-Type: application/json
+
+{
+  "name": "Нурсултан Абенов",
+  "email": "nursultan@example.com",
+  "phone": "+77019998877",
+  "addresses": [
+    {
+      "label": "Дом",
+      "city": "Караганда",
+      "street": "пр. Бухар-Жырау, 45",
+      "zip": "100000"
+    }
+  ]
+}
+
+### Получить пользователя с заказами (virtual populate) (ожидается 200)
+GET {{baseUrl}}/api/users/{{user.response.body.data._id}}?include=orders
+
+### Изменить пользователя (ожидается 200)
+PATCH {{baseUrl}}/api/users/{{user.response.body.data._id}}
+Content-Type: application/json
+
+{
+  "phone": "+77017776655"
+}
+
+# ======================== Товары ========================
+
+### Каталог (без отзывов, с категорией) (ожидается 200)
+GET {{baseUrl}}/api/products?page=1&limit=5
+
+### Фильтр: цена, наличие, сортировка по цене (ожидается 200)
+GET {{baseUrl}}/api/products?minPrice=50000&maxPrice=300000&inStock=true&sort=-price
+
+### Полнотекстовый поиск (ожидается 200)
+GET {{baseUrl}}/api/products?q=наушники
+
+### Фильтр по тегам (ожидается 200)
+GET {{baseUrl}}/api/products?tag=android&tag=samsung
+
+### Создать товар (ожидается 201)
+# @name product
+POST {{baseUrl}}/api/products
+Content-Type: application/json
+
+{
+  "name": "Sony PlayStation 5 Slim",
+  "sku": "PS5-SLIM",
+  "price": 299990,
+  "stock": 4,
+  "category": "{{category.response.body.data._id}}",
+  "tags": [
+    "консоль",
+    "sony"
+  ],
+  "attributes": [
+    {
+      "key": "Накопитель",
+      "value": "SSD 1 ТБ"
+    }
+  ],
+  "description": "Игровая консоль нового поколения"
+}
+
+### Товары категории (ожидается 200)
+GET {{baseUrl}}/api/products?category={{category.response.body.data._id}}
+
+### Получить товар (populate category и reviews.user) (ожидается 200)
+GET {{baseUrl}}/api/products/{{product.response.body.data._id}}
+
+### Изменить цену и остаток (ожидается 200)
+PATCH {{baseUrl}}/api/products/{{product.response.body.data._id}}
+Content-Type: application/json
+
+{
+  "price": 279990,
+  "stock": 5
+}
+
+### Добавить отзыв (встроенный документ) (ожидается 201)
+# @name review
+POST {{baseUrl}}/api/products/{{product.response.body.data._id}}/reviews
+Content-Type: application/json
+
+{
+  "user": "{{user.response.body.data._id}}",
+  "rating": 5,
+  "comment": "Отличная консоль"
+}
+
+### Отзывы товара (ожидается 200)
+GET {{baseUrl}}/api/products/{{product.response.body.data._id}}/reviews
+
+### Изменить отзыв (ожидается 200)
+PATCH {{baseUrl}}/api/products/{{product.response.body.data._id}}/reviews/{{review.response.body.data._id}}
+Content-Type: application/json
+
+{
+  "rating": 4,
+  "comment": "Хорошая, но шумная"
+}
+
+# ======================== Заказы ========================
+
+### Список заказов по статусу (ожидается 200)
+GET {{baseUrl}}/api/orders?status=new&sort=-createdAt
+
+### Заказы за период от суммы (ожидается 200)
+GET {{baseUrl}}/api/orders?from=2026-11-01&to=2026-12-31&minTotal=100000&sort=-total
+
+### Создать заказ (адрес из профиля, остаток списывается) (ожидается 201)
+# @name order
+POST {{baseUrl}}/api/orders
+Content-Type: application/json
+
+{
+  "user": "{{user.response.body.data._id}}",
+  "items": [
+    {
+      "product": "{{product.response.body.data._id}}",
+      "quantity": 2
+    }
+  ],
+  "comment": "Доставка после 18:00"
+}
+
+### Получить заказ (ожидается 200)
+GET {{baseUrl}}/api/orders/{{order.response.body.data._id}}
+
+### Заказы пользователя (ожидается 200)
+GET {{baseUrl}}/api/orders?user={{user.response.body.data._id}}
+
+### Оплатить заказ (new → paid) (ожидается 200)
+PATCH {{baseUrl}}/api/orders/{{order.response.body.data._id}}
+Content-Type: application/json
+
+{
+  "status": "paid"
+}
+
+### Недопустимый переход (paid → delivered) — 409 (ожидается 409)
+PATCH {{baseUrl}}/api/orders/{{order.response.body.data._id}}
+Content-Type: application/json
+
+{
+  "status": "delivered"
+}
+
+### Отменить заказ (товар вернётся на склад) (ожидается 200)
+PATCH {{baseUrl}}/api/orders/{{order.response.body.data._id}}
+Content-Type: application/json
+
+{
+  "status": "cancelled"
+}
+
+### Удалить заказ (ожидается 200)
+DELETE {{baseUrl}}/api/orders/{{order.response.body.data._id}}
+
+# ======================== Статистика (aggregation) ========================
+
+### Выручка по категориям (ожидается 200)
+GET {{baseUrl}}/api/stats/sales-by-category
+
+### Заказы по статусам (ожидается 200)
+GET {{baseUrl}}/api/stats/orders-by-status
+
+# ======================== Удаление (очистка) ========================
+
+### Удалить отзыв (ожидается 200)
+DELETE {{baseUrl}}/api/products/{{product.response.body.data._id}}/reviews/{{review.response.body.data._id}}
+
+### Нельзя удалить категорию с товарами — 409 (ожидается 409)
+DELETE {{baseUrl}}/api/categories/{{category.response.body.data._id}}
+
+### Удалить товар (ожидается 200)
+DELETE {{baseUrl}}/api/products/{{product.response.body.data._id}}
+
+### Удалить категорию (ожидается 200)
+DELETE {{baseUrl}}/api/categories/{{category.response.body.data._id}}
+
+### Удалить пользователя (ожидается 200)
+DELETE {{baseUrl}}/api/users/{{user.response.body.data._id}}
+
+# ======================== Ошибки ========================
+
+### Некорректный id — 400 (ожидается 400)
+GET {{baseUrl}}/api/products/123
+
+### Не найдено — 404 (ожидается 404)
+GET {{baseUrl}}/api/products/64b000000000000000000000
+
+### Ошибка валидации — 400 (ожидается 400)
+POST {{baseUrl}}/api/products
+Content-Type: application/json
+
+{
+  "name": "X",
+  "sku": "плохой",
+  "price": -5
+}
+
+### Дубликат email — 409 (ожидается 409)
+POST {{baseUrl}}/api/users
+Content-Type: application/json
+
+{
+  "name": "Дубль",
+  "email": "aidos@example.com"
+}
+
+### Сортировка по запрещённому полю — 400 (ожидается 400)
+GET {{baseUrl}}/api/products?sort=secret
